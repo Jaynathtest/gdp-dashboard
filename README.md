@@ -32,7 +32,7 @@ India's diverse cultural landscape is a major driver of tourism. This dashboard 
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/cultural-tourism-dashboard.git
+   git clone https://github.com/Jaynathtest/gdp-dashboard
    cd cultural-tourism-dashboard
    ```
 
