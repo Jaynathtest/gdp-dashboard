@@ -1,151 +1,183 @@
 import streamlit as st
 import pandas as pd
-import math
 from pathlib import Path
 
-# Set the title and favicon that appear in the Browser's tab bar.
+# -----------------------------------------------------------------------------
+# 1) Page configuration
+# -----------------------------------------------------------------------------
 st.set_page_config(
-    page_title='GDP dashboard',
-    page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
+    page_title="Tourism Share in GSDP Dashboard",
+    page_icon=":bar_chart:",
+    layout="wide",
 )
 
+
 # -----------------------------------------------------------------------------
-# Declare some useful functions.
-
+# 2) Helper function to load data (cached)
+# -----------------------------------------------------------------------------
 @st.cache_data
-def get_gdp_data():
-    """Grab GDP data from a CSV file.
-
-    This uses caching to avoid having to read the file every time. If we were
-    reading from an HTTP endpoint instead of a file, it's a good idea to set
-    a maximum age to the cache with the TTL argument: @st.cache_data(ttl='1d')
+def load_data():
     """
+    Load the CSV file 'RS Session 247 AS 7.1.csv' from the same directory as this script.
+    Renames columns for convenience and drops the serial-number column.
+    """
+    filepath = Path(__file__).parent / "RS Session 247 AS 7.1.csv"
+    df = pd.read_csv(filepath)
 
-    # Instead of a CSV on disk, you could read from an HTTP endpoint here too.
-    DATA_FILENAME = Path(__file__).parent/'data/gdp_data.csv'
-    raw_gdp_df = pd.read_csv(DATA_FILENAME)
-
-    MIN_YEAR = 1960
-    MAX_YEAR = 2022
-
-    # The data above has columns like:
-    # - Country Name
-    # - Country Code
-    # - [Stuff I don't care about]
-    # - GDP for 1960
-    # - GDP for 1961
-    # - GDP for 1962
-    # - ...
-    # - GDP for 2022
-    #
-    # ...but I want this instead:
-    # - Country Name
-    # - Country Code
-    # - Year
-    # - GDP
-    #
-    # So let's pivot all those year-columns into two: Year and GDP
-    gdp_df = raw_gdp_df.melt(
-        ['Country Code'],
-        [str(x) for x in range(MIN_YEAR, MAX_YEAR + 1)],
-        'Year',
-        'GDP',
+    # Rename columns to simpler names:
+    #   'States/UTs' → 'State'
+    #   'Estimated share of Tourism (Direct and Indirect) in GSDP of States/UTs (in %)' → 'Share_GSDP_pct'
+    df = df.rename(
+        columns={
+            "States/UTs": "State",
+            "Estimated share of Tourism (Direct and Indirect) in GSDP of States/UTs (in %)": "Share_GSDP_pct",
+        }
     )
 
-    # Convert years from string to integers
-    gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
+    # Drop the 'S. No.' column if it exists
+    if "S. No." in df.columns:
+        df = df.drop(columns=["S. No."])
 
-    return gdp_df
+    # Convert share column to numeric (in case it was read as string)
+    df["Share_GSDP_pct"] = pd.to_numeric(df["Share_GSDP_pct"], errors="coerce")
 
-gdp_df = get_gdp_data()
+    return df
+
+
+# Load the data once (cached)
+data = load_data()
+
 
 # -----------------------------------------------------------------------------
-# Draw the actual page
+# 3) Sidebar: Filters
+# -----------------------------------------------------------------------------
+st.sidebar.header(":mag_right: Filters")
 
-# Set the title that appears at the top of the page.
-'''
-# :earth_americas: GDP dashboard
-
-Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website. As you'll
-notice, the data only goes to 2022 right now, and datapoints for certain years are often missing.
-But it's otherwise a great (and did I mention _free_?) source of data.
-'''
-
-# Add some spacing
-''
-''
-
-min_value = gdp_df['Year'].min()
-max_value = gdp_df['Year'].max()
-
-from_year, to_year = st.slider(
-    'Which years are you interested in?',
-    min_value=min_value,
-    max_value=max_value,
-    value=[min_value, max_value])
-
-countries = gdp_df['Country Code'].unique()
-
-if not len(countries):
-    st.warning("Select at least one country")
-
-selected_countries = st.multiselect(
-    'Which countries would you like to view?',
-    countries,
-    ['DEU', 'FRA', 'GBR', 'BRA', 'MEX', 'JPN'])
-
-''
-''
-''
-
-# Filter the data
-filtered_gdp_df = gdp_df[
-    (gdp_df['Country Code'].isin(selected_countries))
-    & (gdp_df['Year'] <= to_year)
-    & (from_year <= gdp_df['Year'])
-]
-
-st.header('GDP over time', divider='gray')
-
-''
-
-st.line_chart(
-    filtered_gdp_df,
-    x='Year',
-    y='GDP',
-    color='Country Code',
+# (a) Multiselect for states
+all_states = sorted(data["State"].unique())
+selected_states = st.sidebar.multiselect(
+    label="Select one or more State/UT",
+    options=all_states,
+    default=all_states,  # by default, show all
 )
 
-''
-''
+# (b) If needed, you could add more filters here (e.g., by min/max share). For now, we only filter by state.
+
+filtered = data[data["State"].isin(selected_states)]
 
 
-first_year = gdp_df[gdp_df['Year'] == from_year]
-last_year = gdp_df[gdp_df['Year'] == to_year]
+# -----------------------------------------------------------------------------
+# 4) Main Page Layout
+# -----------------------------------------------------------------------------
 
-st.header(f'GDP in {to_year}', divider='gray')
+# 4.1 Title + Description
+st.title("🌐 Tourism Share in GSDP – India (State/UT-wise)")
+st.markdown(
+    """
+This dashboard shows the **estimated share of tourism (direct + indirect)** in the GSDP of each Indian State or Union Territory.  
+You can filter by State/UT in the sidebar. Hover over points in the charts to see exact values.
+"""
+)
+st.markdown("---")
 
-''
 
-cols = st.columns(4)
+# 4.2 Top KPI Cards: Average share, Max share, Min share (across the filtered selection)
+if not filtered.empty:
+    avg_share = filtered["Share_GSDP_pct"].mean()
+    max_row = filtered.loc[filtered["Share_GSDP_pct"].idxmax()]
+    min_row = filtered.loc[filtered["Share_GSDP_pct"].idxmin()]
+else:
+    avg_share = max_row = min_row = None
 
-for i, country in enumerate(selected_countries):
-    col = cols[i % len(cols)]
+col1, col2, col3 = st.columns([1, 1, 1])
 
-    with col:
-        first_gdp = first_year[first_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-        last_gdp = last_year[last_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-
-        if math.isnan(first_gdp):
-            growth = 'n/a'
-            delta_color = 'off'
-        else:
-            growth = f'{last_gdp / first_gdp:,.2f}x'
-            delta_color = 'normal'
-
+with col1:
+    if avg_share is not None:
         st.metric(
-            label=f'{country} GDP',
-            value=f'{last_gdp:,.0f}B',
-            delta=growth,
-            delta_color=delta_color
+            label="📊 Average Tourism Share (Filtered)",
+            value=f"{avg_share:.2f}%",
         )
+    else:
+        st.metric(
+            label="📊 Average Tourism Share (Filtered)",
+            value="—",
+        )
+
+with col2:
+    if max_row is not None:
+        st.metric(
+            label="🔝 Highest Tourism Share",
+            value=f"{max_row['Share_GSDP_pct']:.2f}%",
+            delta=f"{max_row['State']}",
+        )
+    else:
+        st.metric(
+            label="🔝 Highest Tourism Share",
+            value="—",
+        )
+
+with col3:
+    if min_row is not None:
+        st.metric(
+            label="🔻 Lowest Tourism Share",
+            value=f"{min_row['Share_GSDP_pct']:.2f}%",
+            delta=f"{min_row['State']}",
+        )
+    else:
+        st.metric(
+            label="🔻 Lowest Tourism Share",
+            value="—",
+        )
+
+st.markdown("---")
+
+
+# 4.3 Bar Chart: Tourism Share by State/UT
+st.subheader("📈 Tourism Share in GSDP by State/UT")
+
+if filtered.empty:
+    st.warning("No data to display. Adjust your filters in the sidebar.")
+else:
+    # Sort by share descending
+    filtered_sorted = filtered.sort_values(by="Share_GSDP_pct", ascending=False)
+
+    # Plotly bar chart for better hover info
+    import plotly.express as px
+
+    fig_bar = px.bar(
+        filtered_sorted,
+        x="Share_GSDP_pct",
+        y="State",
+        orientation="h",
+        labels={"Share_GSDP_pct": "Tourism Share (%)", "State": "State/UT"},
+        text="Share_GSDP_pct",
+    )
+    fig_bar.update_layout(
+        yaxis=dict(autorange="reversed"),  # So the highest appears on top
+        margin=dict(l=120, r=20, t=30, b=40),
+        height=600,
+    )
+    fig_bar.update_traces(texttemplate="%{text:.2f}%", textposition="outside")
+
+    st.plotly_chart(fig_bar, use_container_width=True)
+
+
+st.markdown("---")
+
+
+# 4.4 Data Table: Show raw data
+st.subheader("📋 Underlying Data")
+st.dataframe(
+    filtered.reset_index(drop=True).style.format({"Share_GSDP_pct": "{:.2f}%"}),
+    height=400,
+)
+
+# 4.5 Footer / Credits
+st.markdown("---")
+st.markdown(
+    """
+<small>Data Source: `RS Session 247 AS 7.1.csv` (courtesy of user upload).</small>  
+<small>Created with Streamlit.</small>
+""",
+    unsafe_allow_html=True,
+)
