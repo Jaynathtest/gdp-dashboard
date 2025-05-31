@@ -60,7 +60,10 @@ If you’re using Snowflake’s Streamlit integration:
 
 ## 📸 Screenshots
 
-*Add screenshots here from your deployed app showing key visualizations and layout.*
+<img width="1470" alt="image" src="https://github.com/user-attachments/assets/85b0ebbf-69da-4370-a5b5-91ec459f92bf" />
+<img width="1470" alt="image" src="https://github.com/user-attachments/assets/602594bf-a760-4fac-90f2-cb71c9525e8f" />
+<img width="1470" alt="image" src="https://github.com/user-attachments/assets/1031083c-1f36-4dcf-83cd-12ba6a38d35b" />
+
 
 ## 🧭 Future Improvements
 
@@ -69,17 +72,5 @@ If you’re using Snowflake’s Streamlit integration:
 * Geospatial map views
 * Responsible tourism metrics (sustainability, local impact)
 
-## 📄 License
-
-MIT License
-
----
-
 Made with ❤️ for a Hackathon to celebrate India's cultural richness.
 
-```
-
----
-
-Let me know if you’d like a matching [requirements.txt](f) file or a [deployment guide](f) for Streamlit Cloud.
-```
