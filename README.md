@@ -1,8 +1,4 @@
-Here’s a clean and informative `README.md` file you can use for your GitHub project page:
 
----
-
-````markdown
 # 📊 Cultural Tourism in India: A Data-Driven Streamlit Dashboard
 
 This project explores the intersection of cultural heritage and tourism in India using interactive data visualizations built with **Streamlit** and powered by open government data.
@@ -38,7 +34,7 @@ India's diverse cultural landscape is a major driver of tourism. This dashboard 
    ```bash
    git clone https://github.com/your-username/cultural-tourism-dashboard.git
    cd cultural-tourism-dashboard
-````
+   ```
 
 2. Install dependencies:
 
